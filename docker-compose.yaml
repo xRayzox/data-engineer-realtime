@@ -48,9 +48,24 @@ services:
   airflow-webserver:
     <<: *airflow-common
     build: .
-    command: webserver
-    entrypoint: ['/opt/airflow/script/entrypoint.sh']
-
+    entrypoint: /bin/bash -c '
+      if [ -e "/opt/airflow/requirements.txt" ]; then
+        python -m pip install --upgrade pip &&
+        pip install -r /opt/airflow/requirements.txt;
+      fi &&
+      if [ ! -f "/opt/airflow/airflow.db" ]; then
+        airflow db migrate &&
+        airflow users create \
+          --username admin \
+          --firstname admin \
+          --lastname admin \
+          --role Admin \
+          --email admin@example.com \
+          --password admin;
+      fi &&
+      airflow db upgrade &&
+      exec airflow webserver'
+    
     ports:
       - "8080:8080"
     healthcheck:
